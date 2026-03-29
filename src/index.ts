@@ -10,7 +10,7 @@ const server = Bun.serve({
 
     if (url.pathname === "/") {
       return new Response(
-        `Hello from Assignment 5!\nHostname: ${host}\nTime: ${new Date().toISOString()}\n`
+        `Kubernetes deployment is up and running!\nHostname: ${host}\nTime: ${new Date().toISOString()}\n`
       );
     }
 
