@@ -2,32 +2,25 @@
 
 **1. What is the difference between `docker` and `containerd`? Why does Kind use containerd under the hood?**
 
-Docker is a complete platform for building, running, and managing containers. It includes a CLI, image builder, and a high-level daemon that handles the full developer workflow. Under the hood, Docker itself uses containerd as its container runtime. Containerd is a lower-level daemon that focuses solely on running and managing containers — pulling images, managing storage, and handling the container lifecycle — without the extra tooling that Docker provides.
+Docker is basically the full package - it gives you the CLI, the build tools, and everything you need to work with containers day to day. Containerd is what actually runs the containers under the hood, it's more low level and just handles things like pulling images and managing the container lifecycle. Docker actually uses containerd internally.
 
-Kind uses containerd directly because it only needs to run containers inside the cluster nodes, not the full Docker workflow. Using containerd keeps things lightweight and is also the same runtime that production Kubernetes clusters (like those on GKE or EKS) use, making Kind more realistic as a local development environment.
+Kind uses containerd directly instead of Docker because it doesn't need all the extra stuff Docker comes with. Containerd is lighter and also happens to be what real production Kubernetes clusters use, so Kind ends up being a more accurate local setup.
 
 **2. Why does the deployment use `imagePullPolicy: Never`?**
 
-Normally Kubernetes tries to pull images from a remote registry like Docker Hub. In a local Kind cluster, images are not pushed to any registry — they are loaded directly into the cluster using `kind load docker-image`. Setting `imagePullPolicy: Never` tells Kubernetes to never attempt a remote pull and only use the image that is already present on the node. Without this setting the deployment would fail with an `ImagePullBackOff` error because Kubernetes would look for the image in a registry where it does not exist.
+Because the image isn't in any registry - it gets loaded directly into the Kind cluster with `kind load docker-image`. If you don't set `imagePullPolicy: Never`, Kubernetes will try to pull it from Docker Hub and fail since the image doesn't exist there. This setting tells it to just use whatever image is already on the node.
 
 **3. What would need to change if you wanted to deploy to a remote Kubernetes cluster instead of a local one?**
 
-Several things would need to change:
-- Images would need to be pushed to a remote container registry (e.g. Docker Hub, GitHub Container Registry, or ECR) instead of loaded with `kind load`.
-- The `imagePullPolicy` should be changed from `Never` to `IfNotPresent` or `Always` so Kubernetes can pull from the registry.
-- The deployment manifest would reference the full registry path for the image (e.g. `ghcr.io/username/app:tag`).
-- The CI/CD workflow would need credentials to authenticate with the registry and push the image.
-- The kubeconfig used by the runner would need to point to the remote cluster instead of the local Kind cluster.
+A few things would need to change:
+- The image would need to be pushed to a real registry like Docker Hub or GitHub Container Registry instead of loaded with `kind load`
+- `imagePullPolicy` would need to be updated so Kubernetes actually pulls from the registry
+- The image name in the deployment would need the full registry path
+- The workflow would need credentials to push to the registry
+- The kubeconfig would need to point to the remote cluster
 
 **4. What are the advantages and disadvantages of using a self-hosted runner compared to GitHub-hosted runners?**
 
-**Advantages:**
-- Full access to local resources such as the Kind cluster, which is not possible with GitHub-hosted runners.
-- No compute costs since the runner uses your own machine.
-- Can be customised with specific software, hardware, or network access that hosted runners do not provide.
+The main advantage is that a self-hosted runner has access to your local machine, which is why it works here - it can reach the Kind cluster directly. It also doesn't cost anything extra.
 
-**Disadvantages:**
-- The runner only works while your machine is on and the runner process is running, making it unreliable for team projects.
-- You are responsible for maintaining, updating, and securing the runner yourself.
-- Public repositories pose a security risk since forks can submit pull requests that run code on your machine.
-- Does not scale automatically — a hosted runner can spin up multiple parallel jobs, while a self-hosted runner is limited to what your machine can handle.
+The downsides are that it only works when your machine is on and the runner process is running, so it's not great for anything that needs to be reliable. You also have to maintain it yourself and it's a security risk on public repos since anyone could open a PR and run code on your machine.
